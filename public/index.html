@@ -1,0 +1,163 @@
+<html>
+<head>
+    <title>Currency Converter</title>
+    <link rel="stylesheet" href="stylesheets/style.css"/>
+</head>
+<body>
+<div ng-app="app">
+    <div class="calculator" ng-controller="Converter">
+        <div ng-model="error" class="error-readout">{{error}}</div>
+            <input class="readout" type='readonly' disabled ng-model="consoleRate">
+        <input class="readout" type='readonly' disabled ng-model="consoleQty">
+
+        <div class="keys" data-ng-init="fetchAllCurrencies()">
+            <div class="row">
+                <select class="currency misc" id="from-currency" ng-model="fromCurrencySelected"
+                        ng-change="changedValue()"
+                        data-ng-options="currency as currency.id + ' ('+ currency.currencyName + ')' for currency in currencies">
+               <option value="">Select...</option>
+                </select>
+
+                <select class="currency misc" id="to-currency" ng-model="toCurrencySelected"
+                        ng-change="changedValue()"
+                        data-ng-options="currency as currency.id + ' ('+ currency.currencyName + ')' for currency in currencies">
+                    <option value="">Select...</option>
+                </select>
+            </div>
+            <div class="row">
+                <button class="key numeric" ng-click="print(7)">7</button>
+                <button class="key numeric" ng-click="print(8)">8</button>
+                <button class="key numeric" ng-click="print(9)">9</button>
+                <button class="key numeric last" ng-click="print(0)">0</button>
+            </div>
+            <div class="row">
+                <button class="key numeric" ng-click="print(4)">4</button>
+                <button class="key numeric" ng-click="print(5)">5</button>
+                <button class="key numeric" ng-click="print(6)">6</button>
+                <button class="key function" ng-click="switch()">⇄</button>
+            </div>
+            <div class="row">
+                <button class="key numeric" ng-click="print(1)">1</button>
+                <button class="key numeric" ng-click="print(2)">2</button>
+                <button class="key numeric" ng-click="print(3)">3</button>
+                <button class="key function" ng-click="clearTotal()">C</button>
+            </div>
+            <div class="row">
+                <button class="key numeric" ng-click="print('.')">.</button>
+                <button class="key function double" ng-model="from_curr">
+                   <!-- <span ng-model="from_curr"></span> -
+                    <span ng-model="to_curr"></span>-->
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.7.2/angular.js"></script>
+
+<script type="text/javascript">
+    angular.module('app', [])
+        .controller('Converter', ['$scope', '$http', Converter]);
+
+    function Converter($scope, $http) {
+        $scope.consoleRate = '';
+
+        let _total = 0;
+        let _state = null;
+
+
+        //method that gets called when selected item changes.
+        $scope.changedValue = function () {
+
+            let currencyFrom = $scope.fromCurrencySelected;
+            let currencyTo = $scope.toCurrencySelected;
+
+            if (currencyFrom != null && currencyTo != null) {
+
+                $scope.error = "";
+
+                if (currencyFrom !== currencyTo) {
+
+                    $scope.from_curr = $scope.fromCurrencySelected.currencySymbol;
+                    $scope.to_curr  = $scope.toCurrencySelected.currencySymbol;
+
+                    var params = `${$scope.fromCurrencySelected.id}_${$scope.toCurrencySelected.id}`;
+                    $http({
+                        method: 'GET',
+                        url: 'https://free.currencyconverterapi.com/api/v5/convert',
+                        params: {
+                            q: params,
+                            compact: 'ultra'
+                        }
+
+                    }).then(function (response) {
+
+                        console.log(response.data);
+                        if (!response)
+                            console.log("could get current rate for this");
+
+                        //using es6 arrow function to convert object to array
+                        let rates = Object.keys(response.data).map(i => response.data[i]);
+                        for (const rate of rates) {
+                            $scope.consoleRate = rate.toFixed(4);
+                            $scope.consoleQty = 1;
+                        }
+
+                    }, function (error) {
+                        console.log(error);
+                    });
+
+                } else {
+                    $scope.error = "You can't convert same currency."
+                }
+
+            } else if (currencyFrom == null) {
+                $scope.error = "Select a currency to convert from"
+            } else if (currencyTo == null) {
+                $scope.error = "Select a currency to convert to"
+            }
+
+        }
+
+
+        /**
+         * network request to get all currencies and bind them to the select dropdown element
+         */
+        $http({
+            method: 'GET',
+            url: 'https://free.currencyconverterapi.com/api/v5/currencies'
+        }).then(function (response) {
+            console.log(response.data);
+            if (!response)
+                console.log("could fetch currencies data");
+            $scope.currencies = response.data.results;
+
+        }, function (error) {
+            console.log(error);
+        });
+
+
+        /**
+         * hangles click events for number
+         * @param n
+         */
+        $scope.print = function (n) {
+            if ($scope.consoleQty.length==1 && $scope.consoleQty=="1") {
+                $scope.consoleQty.length =""
+            }else
+            $scope.consoleRate = $scope.consoleQty * $scope.consoleRate;
+            $scope.consoleQty = $scope.consoleQty.toLocaleString() + n;
+        }
+
+        /**
+         * this clears the rate console
+         */
+        $scope.clearTotal = function () {
+            $scope.consoleQty = "";
+            $scope.consoleRate= "";
+           // $scope.changedValue()
+        }
+    }
+</script>
+</body>
+</html>
